@@ -14,24 +14,30 @@ const findWord = async (req) => {
     let currentTermJson;
     let wordToFind = req.query.term.toUpperCase();
     try {
+        // Reset the bot to look at the first word of a new page.
         let status = await getBotStatus();
         let jsonStatus = JSON.parse(status);
         if (jsonStatus.hasPreviousTerm) {
             await botCameraAction.firstTerm();
         }
+        // If the word is less than M start lookup from beginning else start lookup from end.
         if (wordToFind.charAt(0) < 'M') {
             currentPage =  await botArmAction.firstPage();
             currentPageJson = JSON.parse(currentPage);
+            // Till there is next page.
             while (currentPageJson.hasNextPage) {
                 currentWord = currentPageJson.currentTerm;
                 currentTermDefinition = currentPageJson.currentTermDefinition;
+                // Till there is next word on that page.
                 while(currentPageJson.hasNextTerm) {
+                    // if the word is found return the object.
                     if (currentWord === wordToFind) {
                         return termResponse = {
                             currentWord: currentWord,
                             currentTermDefinition: currentTermDefinition
                         };
                     }
+                    // Else select the next term.
                     currentTerm = await botCameraAction.nextTerm();
                     currentTermJson = JSON.parse(currentTerm);
                     currentWord = currentTermJson.currentTerm;
@@ -43,16 +49,20 @@ const findWord = async (req) => {
         } else {
             currentPage = await botArmAction.lastPage();
             currentPageJson = JSON.parse(currentPage);
+            // turn page backwards till the first page.
             while (currentPageJson.hasPreviousPage){
                 currentWord = currentPageJson.currentTerm;
                 currentTermDefinition = currentPageJson.currentTermDefinition;
+                // Till last word on that page.
                 while (currentPageJson.hasNextTerm) {
+                    // if word is found return the word
                    if (currentWord === wordToFind) {
                        return termResponse ={
                            currentWord: currentWord,
                            currentTermDefinition: currentTermDefinition
                        };
                    } else {
+                       // Select the next word and repeat.
                        currentTerm = await botCameraAction.nextTerm();
                        currentTermJson = JSON.parse(currentTerm);
                        currentWord = currentTermJson.currentTerm;
@@ -62,10 +72,8 @@ const findWord = async (req) => {
                 currentPage = await botArmAction.prevPage();
                 currentPageJson = JSON.parse(currentPage);
             }
-
-
         }
-        return currentPage;
+        return "Word not found";
 
     } catch (e) {
         console.log('Error getting status...');
