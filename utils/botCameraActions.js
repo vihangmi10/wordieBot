@@ -1,27 +1,36 @@
 import reqBot from './requestBot';
 
 const nextTerm = async () => {
-    let endpoint = 'move-to-next-term';
+    let options = {
+        endpoint: 'move-to-next-term',
+        method: 'POST'
+    };
     try{
-        return await reqBot(endpoint);
+        return await reqBot(options);
     }catch (e) {
         console.log('Error ---- ', e);
     }
 };
 
 const prevTerm = async () => {
-    let endpoint = 'move-to-previous-term';
+    let options = {
+        endpoint: 'move-to-previous-term',
+        method: 'POST'
+    };
     try{
-        return await reqBot(endpoint);
+        return await reqBot(options);
     }catch (e) {
         console.log('Error ---- ', e);
     }
 };
 
 const firstTerm = async () => {
-    let endpoint = 'jump-to-first-term';
+    let options = {
+        endpoint: 'jump-to-first-term',
+        method: 'POST'
+    };
     try{
-        return await reqBot(endpoint);
+        return await reqBot(options);
     }catch (e) {
         console.log('Error ---- ', e);
     }
@@ -29,9 +38,12 @@ const firstTerm = async () => {
 };
 
 const lastTerm = async () => {
-    let endpoint = 'jump-to-last-term';
+    let options = {
+        endpoint: 'jump-to-last-term',
+        method: 'POST'
+    };
     try{
-        return await reqBot(endpoint);
+        return await reqBot(options);
     }catch (e) {
         console.log('Error ---- ', e);
     }

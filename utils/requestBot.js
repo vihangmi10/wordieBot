@@ -1,10 +1,11 @@
 import request from 'request-promise';
 require('dotenv').config();
 
-const reqBot = async (endpoint) => {
+const reqBot = async (reqOptions) => {
     let response;
     let options = {
-        uri:  process.env.API_URL + endpoint,
+        method: reqOptions.method || 'GET',
+        uri:  process.env.API_URL + reqOptions.endpoint,
         headers: {'x-api-key': process.env.X_API_KEY}
     };
     try {

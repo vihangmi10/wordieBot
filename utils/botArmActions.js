@@ -1,9 +1,12 @@
 import reqBot from './requestBot';
 
 const nextPage = async () => {
-    let endpoint = 'move-to-next-page';
+    let options = {
+        endpoint: 'move-to-next-page',
+        method: 'POST'
+    };
     try{
-        return await reqBot(endpoint);
+        return await reqBot(options);
     }catch (e) {
         console.log('Error ---- ', e);
     }
@@ -11,27 +14,36 @@ const nextPage = async () => {
 };
 
 const prevPage = async () => {
-    let endpoint = 'move-to-previous-page';
+    let options = {
+        endpoint: 'move-to-previous-page',
+        method: 'POST'
+    };
     try{
-        return await reqBot(endpoint);
+        return await reqBot(options);
     }catch (e) {
         console.log('Error ---- ', e);
     }
 };
 
 const firstPage = async () => {
-    let endpoint = 'jump-to-first-page';
+    let options = {
+        endpoint: 'jump-to-first-page',
+        method: 'POST'
+    };
     try{
-        return await reqBot(endpoint);
+        return await reqBot(options);
     }catch (e) {
         console.log('Error ---- ', e);
     }
 };
 
 const lastPage = async () => {
-    let endpoint = 'jump-to-last-page';
+    let options = {
+        endpoint: 'jump-to-last-page',
+        method: 'POST'
+    };
     try{
-        return await reqBot(endpoint);
+        return await reqBot(options);
     }catch (e) {
         console.log('Error ---- ', e);
     }

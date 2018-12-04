@@ -6,7 +6,7 @@ const router = express.Router();
 
 router.get('/', async (req, res)=> {
     try{
-        let response = await botStatus(req, res);
+        let response = await botStatus();
         res.status(200).send(response);
     }catch (e) {
         res.status(500).send(e);
