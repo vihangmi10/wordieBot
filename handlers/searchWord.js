@@ -1,6 +1,9 @@
 import botArmAction from '../utils/botArmActions';
 import botCameraAction from '../utils/botCameraActions';
 
+// Compare each character of the first word and word to find and word to find and last word.
+// If the character is same move ahead. If the character is different and if the word to find character is between the first word and last word
+// return trye if the word is between first word and last word.
 const characterComparator = (word1, word2, position) =>{
     if (position === Math.max(word1.length, word2.length)) {
         return true;
@@ -13,6 +16,11 @@ const characterComparator = (word1, word2, position) =>{
     }
     else return (secondCharacter > firstCharacter);
 };
+// A function to check if the word to find is closer to the first word or the last word.
+// if the character that is different in word to find then first word and last word then compare it with first word character and last word character
+// Check to which word it is closer
+// Return true if it is closer to first word else return false.
+
 const startLookupFromFirst = (firstWord, lastWord, word, position) => {
 
     if (position === word.length) {
@@ -28,18 +36,7 @@ const startLookupFromFirst = (firstWord, lastWord, word, position) => {
         return startLookupFromFirst(firstWord, lastWord, word, position+1);
     }
 };
-const someFunction = async (req) => {
 
-    let firstWord = {
-        currentTerm: 'YESTERDAY'
-    };
-    let lastWord = {
-        currentTerm: 'YOGURT'
-    };
-    let word = 'YES';
-    let position = 0;
-    console.log(characterComparator(firstWord,lastWord, word, position));
-};
 const findWord = async (req) => {
     let wordToFind;
     let currentPage;
@@ -54,11 +51,8 @@ const findWord = async (req) => {
       if (!req.query.term)
           throw new Error('Invalid query parameter');
       wordToFind = req.query.term.toUpperCase();
-      console.log('WORD TO BE FOUND ---- ', wordToFind);
-      console.log(wordToFind.charAt(0));
 
-      if (wordToFind.charAt(0) <= 'M') {
-          console.log('Start from start...');
+      if (wordToFind.charAt(0) < 'M') {
           // Search from start
           currentPage = await botArmAction.firstPage();
           currentPageJson = JSON.parse(currentPage);
@@ -74,18 +68,25 @@ const findWord = async (req) => {
           // flip pages till the last page
           while(currentPageJson.hasNextPage) {
               let position = 0;
+              if (currentPageJson.currentTerm.charAt(0) > wordToFind.charAt(0)) {
+                  return {message: 'Word not found'};
+              }
               if (characterComparator(firstWordJson.currentTerm, wordToFind, position) && characterComparator(wordToFind, lastWordJson.currentTerm, position)) {
-                  console.log('Word is on this page between....');
-                  console.log('First word -- ', firstWordJson);
-                  console.log(' Last word --- ', lastWordJson);
                   // Word is on this page
                   if (startLookupFromFirst(firstWordJson, lastWordJson, wordToFind, 0)) {
                       // start the search from first word
-                      console.log('It should start from first ...');
-                      currentWordJson = firstWordJson;
+                      currentWord = await botCameraAction.firstTerm();
+                      currentWordJson = JSON.parse(currentWord);
                       while (currentWordJson.hasNextTerm) {
                           if (currentWordJson.currentTerm === wordToFind){
+                              console.log('WORD FOUND --- ', +wordToFind+ ' Meaning ---- ', currentWordJson.currentTermDefinition);
                               return {word: currentWordJson.currentTerm, meaning: currentWordJson.currentTermDefinition};
+                          }
+                          if ((currentWordJson.currentTerm.charAt(0) === wordToFind.charAt(0)) && (currentWordJson.currentTerm.charAt(1)) > wordToFind.charAt(1)) {
+                              return {message: 'Word not found'};
+                          }
+                          if ((currentWordJson.currentTerm.charAt(0) !== wordToFind.charAt(0) && (currentWordJson.currentTerm.charAt(0) > wordToFind.charAt(0)))) {
+                              return {message: 'Word not found'};
                           }
                           currentWord = await botCameraAction.nextTerm();
                           currentWordJson = JSON.parse(currentWord);
@@ -93,16 +94,20 @@ const findWord = async (req) => {
                       return {message: 'Word not found'};
                   }else {
                       // start the search from the last word.
-                      console.log('It should start from last...');
-                      currentWordJson = lastWordJson;
-                      console.log('CURRENT WORD JSON --- ', currentWordJson);
+                      currentWord = await botCameraAction.lastTerm();
+                      currentWordJson = JSON.parse(currentWord);
                       while (currentWordJson.hasPreviousTerm) {
-                          console.log('Does it have previous term???? --- ', currentWordJson);
                           if (currentWordJson.currentTerm === wordToFind) {
+                              console.log('WORD FOUND --- ', +wordToFind+ ' Meaning ---- ', currentWordJson.currentTermDefinition);
                               return {word: currentWordJson.currentTerm, meaning: currentWordJson.currentTermDefinition};
                           }
+                          if ((currentWordJson.currentTerm.charAt(0) === wordToFind.charAt(0)) && (currentWordJson.currentTerm.charAt(1)) < wordToFind.charAt(1)) {
+                              return {message: 'Word not found'};
+                          }
+                          if ((currentWordJson.currentTerm.charAt(0) !== wordToFind.charAt(0) && (currentWordJson.currentTerm.charAt(0) < wordToFind.charAt(0)))) {
+                              return {message: 'Word not found'};
+                          }
                           currentWord = await botCameraAction.prevTerm();
-                          console.log('GOING TO PREVIOUS TERM ---- ', currentWord);
                           currentWordJson = JSON.parse(currentWord);
                       }
                       return {message: 'Word not found'};
@@ -110,7 +115,7 @@ const findWord = async (req) => {
               } else {
                   // increment the page
                   currentPage = await botArmAction.nextPage();
-                  currentWordJson = JSON.parse(currentPage);
+                  currentPageJson =  JSON.parse(currentPage);
                   firstWord = await botCameraAction.firstTerm();
                   firstWordJson = JSON.parse(firstWord);
                   lastWord = await botCameraAction.lastTerm();
@@ -134,18 +139,24 @@ const findWord = async (req) => {
 
           while (currentPageJson.hasPreviousPage) {
               let position = 0;
+              if (currentPageJson.currentTerm.charAt(0) < wordToFind.charAt(0)) {
+                  return {message: 'Word not found'};
+              }
               if (characterComparator(firstWordJson.currentTerm, wordToFind, position) && characterComparator(wordToFind, lastWordJson.currentTerm, position)) {
-                  console.log('Word is on this page between....');
-                  console.log('First word -- ', firstWordJson);
-                  console.log(' Last word --- ', lastWordJson);
                   // Word is on this page
                   if (startLookupFromFirst(firstWordJson, lastWordJson, wordToFind, 0)) {
                       // start the search from first word
-                      console.log('It should start from first ...');
                       currentWordJson = firstWordJson;
                       while (currentWordJson.hasNextTerm) {
                           if (currentWordJson.currentTerm === wordToFind){
+                              console.log('WORD FOUND --- ', +wordToFind+ ' Meaning ---- ', currentWordJson.currentTermDefinition);
                               return {word: currentWordJson.currentTerm, meaning: currentWordJson.currentTermDefinition};
+                          }
+                          if ((currentWordJson.currentTerm.charAt(0) === wordToFind.charAt(0)) && (currentWordJson.currentTerm.charAt(1)) > wordToFind.charAt(1)) {
+                              return {message: 'Word not found'};
+                          }
+                          if ((currentWordJson.currentTerm.charAt(0) !== wordToFind.charAt(0) && (currentWordJson.currentTerm.charAt(0) > wordToFind.charAt(0)))) {
+                              return {message: 'Word not found'};
                           }
                           currentWord = await botCameraAction.nextTerm();
                           currentWordJson = JSON.parse(currentWord);
@@ -154,11 +165,18 @@ const findWord = async (req) => {
 
                   }else {
                       // start the search from the last word.
-                      console.log('It should start from last...');
-                      currentWordJson = lastWordJson;
+                      currentWord = await botCameraAction.lastTerm();
+                      currentWordJson = JSON.parse(currentWord);
                       while (currentWordJson.hasPreviousTerm) {
                           if (currentWordJson.currentTerm === wordToFind) {
+                              console.log('Word found and it is --- ' +currentWordJson.currentTerm+ ' and the meaning is ----- ', currentWordJson.currentTermDefinition);
                               return {word: currentWordJson.currentTerm, meaning: currentWordJson.currentTermDefinition};
+                          }
+                          if ((currentWordJson.currentTerm.charAt(0) === wordToFind.charAt(0)) && (currentWordJson.currentTerm.charAt(1)) < wordToFind.charAt(1)) {
+                              return {message: 'Word not found'};
+                          }
+                          if ((currentWordJson.currentTerm.charAt(0) !== wordToFind.charAt(0) && (currentWordJson.currentTerm.charAt(0) < wordToFind.charAt(0)))) {
+                              return {message: 'Word not found'};
                           }
                           currentWord = await botCameraAction.prevTerm();
                           currentWordJson = JSON.parse(currentWord);
@@ -168,7 +186,7 @@ const findWord = async (req) => {
               } else {
                   // increment the page
                   currentPage = await botArmAction.prevPage();
-                  currentWordJson = JSON.parse(currentPage);
+                  currentPageJson = JSON.parse(currentPage);
                   firstWord = await botCameraAction.firstTerm();
                   firstWordJson = JSON.parse(firstWord);
                   lastWord = await botCameraAction.lastTerm();
