@@ -1,9 +1,11 @@
 import botArmAction from '../utils/botArmActions';
 import botCameraAction from '../utils/botCameraActions';
 
+let dictionary = new Map();
+
 // Compare each character of the first word and word to find and word to find and last word.
 // If the character is same move ahead. If the character is different and if the word to find character is between the first word and last word
-// return trye if the word is between first word and last word.
+// return true if the word is between first word and last word.
 const characterComparator = (word1, word2, position) =>{
     if (position === Math.max(word1.length, word2.length)) {
         return true;
@@ -51,151 +53,170 @@ const findWord = async (req) => {
       if (!req.query.term)
           throw new Error('Invalid query parameter');
       wordToFind = req.query.term.toUpperCase();
+      console.log('Word to find is ---- ', wordToFind);
+      console.log('Is it in dictionary.... ', dictionary.has(wordToFind));
+      // Check if the word is in the dictionary.
+    if (dictionary.has(wordToFind)) {
+        console.log('Word found in the dictionary....');
+        let wordMeaning = dictionary.get(wordToFind);
+        console.log('Returning the word --- '+wordToFind+ ' and its meaning ---- ', wordMeaning);
+        return {word: wordToFind, meaning: wordMeaning};
+    }
+    else {
+        if (wordToFind.charAt(0) < 'M') {
+            // Search from start
+            currentPage = await botArmAction.firstPage();
+            currentPageJson = JSON.parse(currentPage);
 
-      if (wordToFind.charAt(0) < 'M') {
-          // Search from start
-          currentPage = await botArmAction.firstPage();
-          currentPageJson = JSON.parse(currentPage);
+            // get the last word of the page
+            lastWord = await botCameraAction.lastTerm();
+            lastWordJson = JSON.parse(lastWord);
 
-          // get the last word of the page
-          lastWord = await botCameraAction.lastTerm();
-          lastWordJson = JSON.parse(lastWord);
+            // set the bot camera to look at the first word
+            firstWord = await botCameraAction.firstTerm();
+            firstWordJson = JSON.parse(firstWord);
 
-          // set the bot camera to look at the first word
-          firstWord = await botCameraAction.firstTerm();
-          firstWordJson = JSON.parse(firstWord);
+            // flip pages till the last page
+            while(currentPageJson.hasNextPage) {
+                let position = 0;
+                if (currentPageJson.currentTerm.charAt(0) > wordToFind.charAt(0)) {
+                    return {message: 'Word not found'};
+                }
+                if (characterComparator(firstWordJson.currentTerm, wordToFind, position) && characterComparator(wordToFind, lastWordJson.currentTerm, position)) {
+                    // Word is on this page
+                    if (startLookupFromFirst(firstWordJson, lastWordJson, wordToFind, 0)) {
+                        // start the search from first word
+                        currentWord = await botCameraAction.firstTerm();
+                        currentWordJson = JSON.parse(currentWord);
+                        while (currentWordJson.hasNextTerm) {
+                            if (currentWordJson.currentTerm === wordToFind){
+                                console.log('WORD FOUND 1 --- ', +wordToFind+ ' Meaning ---- ', currentWordJson.currentTermDefinition);
+                                console.log('Adding word to dictionary...');
+                                dictionary.set(wordToFind, currentWordJson.currentTermDefinition);
+                                console.log('The dictionary is ---- ', dictionary);
+                                return {word: currentWordJson.currentTerm, meaning: currentWordJson.currentTermDefinition};
+                            }
+                            if ((currentWordJson.currentTerm.charAt(0) === wordToFind.charAt(0)) && (currentWordJson.currentTerm.charAt(1)) > wordToFind.charAt(1)) {
+                                return {message: 'Word not found'};
+                            }
+                            if ((currentWordJson.currentTerm.charAt(0) !== wordToFind.charAt(0) && (currentWordJson.currentTerm.charAt(0) > wordToFind.charAt(0)))) {
+                                return {message: 'Word not found'};
+                            }
+                            currentWord = await botCameraAction.nextTerm();
+                            currentWordJson = JSON.parse(currentWord);
+                        }
+                        return {message: 'Word not found'};
+                    }else {
+                        // start the search from the last word.
+                        currentWord = await botCameraAction.lastTerm();
+                        currentWordJson = JSON.parse(currentWord);
+                        while (currentWordJson.hasPreviousTerm) {
+                            if (currentWordJson.currentTerm === wordToFind) {
+                                console.log('WORD FOUND 2--- ', +currentWordJson.currentTerm+ ' Meaning ---- ', currentWordJson.currentTermDefinition);
+                                console.log('Adding the word to dictionary....');
+                                dictionary.set(wordToFind, currentWordJson.currentTermDefinition);
+                                console.log('Dictionary is ---- ', dictionary);
+                                return {word: currentWordJson.currentTerm, meaning: currentWordJson.currentTermDefinition};
+                            }
+                            if ((currentWordJson.currentTerm.charAt(0) === wordToFind.charAt(0)) && (currentWordJson.currentTerm.charAt(1)) < wordToFind.charAt(1)) {
+                                return {message: 'Word not found'};
+                            }
+                            if ((currentWordJson.currentTerm.charAt(0) !== wordToFind.charAt(0) && (currentWordJson.currentTerm.charAt(0) < wordToFind.charAt(0)))) {
+                                return {message: 'Word not found'};
+                            }
+                            currentWord = await botCameraAction.prevTerm();
+                            currentWordJson = JSON.parse(currentWord);
+                        }
+                        return {message: 'Word not found'};
+                    }
+                } else {
+                    // increment the page
+                    currentPage = await botArmAction.nextPage();
+                    currentPageJson =  JSON.parse(currentPage);
+                    firstWord = await botCameraAction.firstTerm();
+                    firstWordJson = JSON.parse(firstWord);
+                    lastWord = await botCameraAction.lastTerm();
+                    lastWordJson = JSON.parse(lastWord);
 
-          // flip pages till the last page
-          while(currentPageJson.hasNextPage) {
-              let position = 0;
-              if (currentPageJson.currentTerm.charAt(0) > wordToFind.charAt(0)) {
-                  return {message: 'Word not found'};
-              }
-              if (characterComparator(firstWordJson.currentTerm, wordToFind, position) && characterComparator(wordToFind, lastWordJson.currentTerm, position)) {
-                  // Word is on this page
-                  if (startLookupFromFirst(firstWordJson, lastWordJson, wordToFind, 0)) {
-                      // start the search from first word
-                      currentWord = await botCameraAction.firstTerm();
-                      currentWordJson = JSON.parse(currentWord);
-                      while (currentWordJson.hasNextTerm) {
-                          if (currentWordJson.currentTerm === wordToFind){
-                              console.log('WORD FOUND --- ', +wordToFind+ ' Meaning ---- ', currentWordJson.currentTermDefinition);
-                              return {word: currentWordJson.currentTerm, meaning: currentWordJson.currentTermDefinition};
-                          }
-                          if ((currentWordJson.currentTerm.charAt(0) === wordToFind.charAt(0)) && (currentWordJson.currentTerm.charAt(1)) > wordToFind.charAt(1)) {
-                              return {message: 'Word not found'};
-                          }
-                          if ((currentWordJson.currentTerm.charAt(0) !== wordToFind.charAt(0) && (currentWordJson.currentTerm.charAt(0) > wordToFind.charAt(0)))) {
-                              return {message: 'Word not found'};
-                          }
-                          currentWord = await botCameraAction.nextTerm();
-                          currentWordJson = JSON.parse(currentWord);
-                      }
-                      return {message: 'Word not found'};
-                  }else {
-                      // start the search from the last word.
-                      currentWord = await botCameraAction.lastTerm();
-                      currentWordJson = JSON.parse(currentWord);
-                      while (currentWordJson.hasPreviousTerm) {
-                          if (currentWordJson.currentTerm === wordToFind) {
-                              console.log('WORD FOUND --- ', +wordToFind+ ' Meaning ---- ', currentWordJson.currentTermDefinition);
-                              return {word: currentWordJson.currentTerm, meaning: currentWordJson.currentTermDefinition};
-                          }
-                          if ((currentWordJson.currentTerm.charAt(0) === wordToFind.charAt(0)) && (currentWordJson.currentTerm.charAt(1)) < wordToFind.charAt(1)) {
-                              return {message: 'Word not found'};
-                          }
-                          if ((currentWordJson.currentTerm.charAt(0) !== wordToFind.charAt(0) && (currentWordJson.currentTerm.charAt(0) < wordToFind.charAt(0)))) {
-                              return {message: 'Word not found'};
-                          }
-                          currentWord = await botCameraAction.prevTerm();
-                          currentWordJson = JSON.parse(currentWord);
-                      }
-                      return {message: 'Word not found'};
-                  }
-              } else {
-                  // increment the page
-                  currentPage = await botArmAction.nextPage();
-                  currentPageJson =  JSON.parse(currentPage);
-                  firstWord = await botCameraAction.firstTerm();
-                  firstWordJson = JSON.parse(firstWord);
-                  lastWord = await botCameraAction.lastTerm();
-                  lastWordJson = JSON.parse(lastWord);
+                }
+            }
+        } else {
+            console.log('Start from the back...');
+            // Search from start
+            currentPage = await botArmAction.lastPage();
+            currentPageJson = JSON.parse(currentPage);
 
-              }
-          }
-      } else {
-          console.log('Start from the back...');
-          // Search from start
-          currentPage = await botArmAction.lastPage();
-          currentPageJson = JSON.parse(currentPage);
+            // get the last word of the page
+            lastWord = await botCameraAction.lastTerm();
+            lastWordJson = JSON.parse(lastWord);
 
-          // get the last word of the page
-          lastWord = await botCameraAction.lastTerm();
-          lastWordJson = JSON.parse(lastWord);
+            // set the bot camera to look at the first word
+            firstWord = await botCameraAction.firstTerm();
+            firstWordJson = JSON.parse(firstWord);
 
-          // set the bot camera to look at the first word
-          firstWord = await botCameraAction.firstTerm();
-          firstWordJson = JSON.parse(firstWord);
+            while (currentPageJson.hasPreviousPage) {
+                let position = 0;
+                if (currentPageJson.currentTerm.charAt(0) < wordToFind.charAt(0)) {
+                    return {message: 'Word not found'};
+                }
+                if (characterComparator(firstWordJson.currentTerm, wordToFind, position) && characterComparator(wordToFind, lastWordJson.currentTerm, position)) {
+                    // Word is on this page
+                    if (startLookupFromFirst(firstWordJson, lastWordJson, wordToFind, 0)) {
+                        // start the search from first word
+                        currentWordJson = firstWordJson;
+                        while (currentWordJson.hasNextTerm) {
+                            if (currentWordJson.currentTerm === wordToFind){
+                                console.log('WORD FOUND 3--- ', +wordToFind+ ' Meaning ---- ', currentWordJson.currentTermDefinition);
+                                dictionary.set(wordToFind, currentWordJson.currentTermDefinition);
+                                return {word: currentWordJson.currentTerm, meaning: currentWordJson.currentTermDefinition};
+                            }
+                            if ((currentWordJson.currentTerm.charAt(0) === wordToFind.charAt(0)) && (currentWordJson.currentTerm.charAt(1)) > wordToFind.charAt(1)) {
+                                return {message: 'Word not found'};
+                            }
+                            if ((currentWordJson.currentTerm.charAt(0) !== wordToFind.charAt(0) && (currentWordJson.currentTerm.charAt(0) > wordToFind.charAt(0)))) {
+                                return {message: 'Word not found'};
+                            }
+                            currentWord = await botCameraAction.nextTerm();
+                            currentWordJson = JSON.parse(currentWord);
+                        }
+                        return {message: 'Word not found'};
 
-          while (currentPageJson.hasPreviousPage) {
-              let position = 0;
-              if (currentPageJson.currentTerm.charAt(0) < wordToFind.charAt(0)) {
-                  return {message: 'Word not found'};
-              }
-              if (characterComparator(firstWordJson.currentTerm, wordToFind, position) && characterComparator(wordToFind, lastWordJson.currentTerm, position)) {
-                  // Word is on this page
-                  if (startLookupFromFirst(firstWordJson, lastWordJson, wordToFind, 0)) {
-                      // start the search from first word
-                      currentWordJson = firstWordJson;
-                      while (currentWordJson.hasNextTerm) {
-                          if (currentWordJson.currentTerm === wordToFind){
-                              console.log('WORD FOUND --- ', +wordToFind+ ' Meaning ---- ', currentWordJson.currentTermDefinition);
-                              return {word: currentWordJson.currentTerm, meaning: currentWordJson.currentTermDefinition};
-                          }
-                          if ((currentWordJson.currentTerm.charAt(0) === wordToFind.charAt(0)) && (currentWordJson.currentTerm.charAt(1)) > wordToFind.charAt(1)) {
-                              return {message: 'Word not found'};
-                          }
-                          if ((currentWordJson.currentTerm.charAt(0) !== wordToFind.charAt(0) && (currentWordJson.currentTerm.charAt(0) > wordToFind.charAt(0)))) {
-                              return {message: 'Word not found'};
-                          }
-                          currentWord = await botCameraAction.nextTerm();
-                          currentWordJson = JSON.parse(currentWord);
-                      }
-                      return {message: 'Word not found'};
+                    }else {
+                        // start the search from the last word.
+                        currentWord = await botCameraAction.lastTerm();
+                        currentWordJson = JSON.parse(currentWord);
+                        while (currentWordJson.hasPreviousTerm) {
+                            if (currentWordJson.currentTerm === wordToFind) {
+                                console.log('Word found and it is 4 --- ' +currentWordJson.currentTerm+ ' and the meaning is ----- ', currentWordJson.currentTermDefinition);
+                                dictionary.set(wordToFind, currentWordJson.currentTermDefinition);
+                                return {word: currentWordJson.currentTerm, meaning: currentWordJson.currentTermDefinition};
+                            }
+                            if ((currentWordJson.currentTerm.charAt(0) === wordToFind.charAt(0)) && (currentWordJson.currentTerm.charAt(1)) < wordToFind.charAt(1)) {
+                                return {message: 'Word not found'};
+                            }
+                            if ((currentWordJson.currentTerm.charAt(0) !== wordToFind.charAt(0) && (currentWordJson.currentTerm.charAt(0) < wordToFind.charAt(0)))) {
+                                return {message: 'Word not found'};
+                            }
+                            currentWord = await botCameraAction.prevTerm();
+                            currentWordJson = JSON.parse(currentWord);
+                        }
+                        return {message: 'Word not found'};
+                    }
+                } else {
+                    // increment the page
+                    currentPage = await botArmAction.prevPage();
+                    currentPageJson = JSON.parse(currentPage);
+                    firstWord = await botCameraAction.firstTerm();
+                    firstWordJson = JSON.parse(firstWord);
+                    lastWord = await botCameraAction.lastTerm();
+                    lastWordJson = JSON.parse(lastWord);
 
-                  }else {
-                      // start the search from the last word.
-                      currentWord = await botCameraAction.lastTerm();
-                      currentWordJson = JSON.parse(currentWord);
-                      while (currentWordJson.hasPreviousTerm) {
-                          if (currentWordJson.currentTerm === wordToFind) {
-                              console.log('Word found and it is --- ' +currentWordJson.currentTerm+ ' and the meaning is ----- ', currentWordJson.currentTermDefinition);
-                              return {word: currentWordJson.currentTerm, meaning: currentWordJson.currentTermDefinition};
-                          }
-                          if ((currentWordJson.currentTerm.charAt(0) === wordToFind.charAt(0)) && (currentWordJson.currentTerm.charAt(1)) < wordToFind.charAt(1)) {
-                              return {message: 'Word not found'};
-                          }
-                          if ((currentWordJson.currentTerm.charAt(0) !== wordToFind.charAt(0) && (currentWordJson.currentTerm.charAt(0) < wordToFind.charAt(0)))) {
-                              return {message: 'Word not found'};
-                          }
-                          currentWord = await botCameraAction.prevTerm();
-                          currentWordJson = JSON.parse(currentWord);
-                      }
-                      return {message: 'Word not found'};
-                  }
-              } else {
-                  // increment the page
-                  currentPage = await botArmAction.prevPage();
-                  currentPageJson = JSON.parse(currentPage);
-                  firstWord = await botCameraAction.firstTerm();
-                  firstWordJson = JSON.parse(firstWord);
-                  lastWord = await botCameraAction.lastTerm();
-                  lastWordJson = JSON.parse(lastWord);
+                }
+            }
 
-              }
-          }
+        }
+    }
 
-      }
 };
 
 export default findWord;
